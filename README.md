@@ -12,4 +12,4 @@ repository name
 repository path
 ```
 
-**OBS**: Exemple at: *template.db*.
+**Exemple**: *template.db*.
