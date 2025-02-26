@@ -4,7 +4,7 @@ Track your repository status!
 
 ## Setup
 
-+ Go to *repos.db* and write and follow:
++ Go to *repos.db* and write:
 
 ```	
 first line = number of repositories
