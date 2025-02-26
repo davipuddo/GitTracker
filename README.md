@@ -14,3 +14,17 @@ repository path
 ```
 
 **Exemple**: *template.db*.
+
+## Compile & run
+
+Open a terminal on the source folder and compile the code with:
+
+```
+g++ -o Main Main.cpp
+```
+
+To run the program on windows just open the *Main.exe* file. On linux run
+
+```
+./Main
+```
