@@ -3,6 +3,14 @@
 #include <fstream>
 #include <string>
 
+// Select OS delimiter
+
+#if defined(_WIN32)
+	#define delimiter '\\'
+#elif defined(__linux__)
+	#define delimiter '/'
+#endif
+
 class List
 {
 	public:
@@ -121,7 +129,7 @@ class Repo
 		int nameS = 0;
 
 		// Find repo's name size
-		while (i > -1 && path[i] != '/' || path[i] != '\\') 
+		while (i > -1 && path[i] != delimiter) 
 		{
 			nameS++;
 			i--;
