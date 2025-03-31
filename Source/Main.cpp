@@ -6,9 +6,12 @@
 class List
 {
 	public:
-	std::string* data;
+
+	// Atributes
+	char** data;
 	int length;
 
+	// Constructor
 	List (int n)
 	{
 		data = NULL;
@@ -16,7 +19,11 @@ class List
 
 		if (n > 0)
 		{
-			data = new std::string [n];
+			data = new char* [n+1];
+			for (int i = 0; i < n; i++)
+			{
+				data[i] = NULL;
+			}
 			length = n;
 		}
 		else
@@ -25,7 +32,38 @@ class List
 		}
 	}
 
-	void print ()
+	// Distructor
+	~List ()
+	{
+		if (data)
+		{
+			for (int i = 0; i < length; i++)
+			{
+				if (data[i])
+				{
+					delete (data[i]);
+				}
+			}
+			delete(data);
+		}
+	}
+
+	// Other methods
+
+	void insert (char* x, int pos)
+	{
+		if (x && pos < length)
+		{
+			if (data[pos])
+			{
+				delete(data[pos]);
+			}
+			data[pos] = new char[strlen(x)+1];
+			strcpy(data[pos], x);
+		}
+	}
+
+	void print (void)
 	{
 		for (int i = 0; i < length; i++)
 		{
@@ -37,19 +75,70 @@ class List
 class Repo
 {
 	public:
-	std::string name;
-	std::string path;
 
-	Repo (std::string name, std::string path)
+	// Atributes
+	char* name;
+	char* path;
+
+	// Constructors // 
+
+	Repo (char* path)
 	{
-		this->name = name;
-		this->path = path;
+		if (path)
+		{
+			this->path = new char[strlen(path)+1];
+			strcpy(this->path, path);
+		}
+		this->name = NULL;
 	}
 
 	Repo ()
 	{
-		name = "";
-		path = "";
+		this->path = NULL;
+		this->name = NULL;
+	}
+
+	// Distructor
+	~Repo ()
+	{
+		if (this->path)
+		{
+			delete(path);
+		}
+		if (this->name)
+		{
+			delete(name);
+		}
+	}
+
+	// Other methods //
+
+	// Recover repo's name from the path
+	void getName (void)
+	{
+		int n = strlen(path);
+		int i = n;
+		int nameS = 0;
+
+		// Find repo's name size
+		while (i > -1 && path[i] != '/' || path[i] != '\\') 
+		{
+			nameS++;
+			i--;
+		}
+		nameS--;
+
+		name = new char[nameS+1];
+
+		i = n-nameS;
+		int j = 0;
+		
+		// Copy name
+		while (j < nameS && i < n)
+		{
+			name[j++] = path[i++];
+		}
+		name[nameS] = '\0'; // Add '\0' at the end
 	}
 
 	void print (void)
@@ -58,6 +147,7 @@ class Repo
 	}
 };
 
+// Read a command's output
 std::string commandOutput (char* command)
 {
 	// Define variables
@@ -66,7 +156,7 @@ std::string commandOutput (char* command)
 
 	if (fp)
 	{
-		char* buf = new char[80];
+		char* buf = new char[81];
 		int lineC = 0;
 		int n = 100;
 
@@ -77,7 +167,38 @@ std::string commandOutput (char* command)
 		}
 
 		// Free buffer
-		delete(buf);
+		if (buf)
+		{
+			delete(buf);
+		}
+	}
+	return (res);
+}
+
+// Get file's line count
+int fileSize (std::fstream* fs)
+{
+	int res = 0;
+	if (fs && *fs) // Check stream
+	{
+		// Go to the end
+		fs->seekg(0, std::ios::end);
+
+		// Get pointer position
+		int end = (int)fs->tellg();
+
+		// Go to the start
+		fs->seekg(0, std::ios::beg);
+
+		// Iterate
+		while (fs->tellg() < end)
+		{
+			if (fs->get() == '\n') // Count '\n'
+			{
+				res++;
+			}
+		}
+		fs->seekg(0); // Go back to the start
 	}
 	return (res);
 }
@@ -85,7 +206,7 @@ std::string commandOutput (char* command)
 List* readFile (void)
 {
 	// Define variables
-	List* res = NULL;
+	List* list = NULL;
 	std::string line = "";
 	int n = 0;
 	int i = 0;
@@ -96,22 +217,18 @@ List* readFile (void)
 	if (fs) // Check file status
 	{
 		// Read repos number
-		fs >> n;
+		n = fileSize(&fs);
 			
-		// Convert to line number
-		n *= 2;
-
 		// Create new list
-		res = new List(n);
-
-		// Skip first line
-		std::getline(fs, line);
+		list = new List(n);
 
 		// Read file
-		while (std::getline(fs, line))
+		while (i < n && std::getline(fs, line))
 		{
-			res->data[i] = line;
-			i++;
+			if (line.data())
+			{
+				list->insert(line.data(), i++);
+			}
 		}
 
 		// Close stream
@@ -122,31 +239,31 @@ List* readFile (void)
 		std::cerr << "ERROR: The file could not be opened!\n";
 	}
 
-	return (res);
+	return (list);
 }
 
-Repo* getRepos (List* list)
+Repo** getRepos (List* list)
 {
-	Repo* res = NULL;
+	Repo** repos = NULL;
 
 	if (list)
 	{
 		// Get repos number
-		int n = (int)(list->length/2.0);
+		int n = list->length;
 
-		res = new Repo[n];
+		repos = new Repo*[n];
 
-		if (res)
+		if (repos)
 		{
 			// Read data
 			for (int i = 0; i < n; i++)
 			{
-				int x = (2*i);
-				res[i] = Repo(list->data[x], list->data[x+1]);
+				repos[i] = new Repo(list->data[i]);
+				repos[i]->getName();
 			}
 		}
 	}
-	return (res);
+	return (repos);
 }
 
 int main (void)
@@ -155,27 +272,31 @@ int main (void)
 	List* file = readFile();
 
 	// Define repos
-	Repo* repos = getRepos(file);
+	Repo** repos = getRepos(file);
 
 	// Get repos size
-	int n = (file->length/2.0);
+	int n = file->length;
 
 	// Get status
 	for (int i = 0; i < n; i++)
 	{
-		std::cout << "======= " << repos[i].name << " =======\n"; 
+		// Get string
+		std::string name(repos[i]->name);
+		std::string path(repos[i]->path);
+		
+		std::cout << "======= " << name << " =======\n"; 
 
 		// Fetch repo
 		std::cout << "fetching...\n";
-		std::string line = "git -C " + repos[i].path + " fetch";
+		std::string line = "git -C " + path + " fetch";
 		std::string fetch = commandOutput(line.data());
 
 		// Get status
 		std::cout << "Status: ";
-		line = "git -C " + repos[i].path + " status -sb";
+		line = "git -C " + path + " status -sb";
 		std::string status = commandOutput(line.data());
 
-		// Read status
+		// Define target
 		std::string target = "[behind";
 
 		// Define variables
@@ -184,23 +305,25 @@ int main (void)
 		int y = 0;
 		int c = 0;
 
+		// Compare status with the target
 		while (y < ln && c < tgn)
 		{
 			// Read only the first line
 			if (status[y] == '\n')
 			{
-				y = ln;
+				y = ln; // Exit loop
 			}
-			else if (status[y] == target[c])
+			else if (status[y] == target[c]) // Compare chars
 			{
 				c++;
 			}
-			else
+			else // Not a match
 			{
-				c = 0;
-				if (y == (ln-tgn))
+				c = 0; // Restart position
+
+				if (y == (ln-tgn)) // If there is no space for the target
 				{
-					y = ln;
+					y = ln; // Exit loop
 				}
 			}
 			y++;
@@ -215,6 +338,26 @@ int main (void)
 		{
 			std::cout << "OK!\n";
 		}
+	}
+
+	// Free data
+		// List
+	if (file)
+	{
+		delete(file);
+	}
+
+		// Repos
+	for (int i = 0; i < n; i++)
+	{
+		if (repos[i])
+		{
+			delete(repos[i]);
+		}
+	}
+	if (repos)
+	{
+		delete(repos);
 	}
 
 	return (0);

@@ -7,9 +7,8 @@ Track your repository status!
 Go to *repos.db* and write:
 
 ```	
-first line = number of repositories
-repository name
-repository path
+repository 1 path
+repository 2 path
 ```
 
 **Exemple**: *template.db*.
