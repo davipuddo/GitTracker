@@ -206,6 +206,10 @@ int fileSize (std::fstream* fs)
 				res++;
 			}
 		}
+		if (end > 0 && res == 0)
+		{
+			res = 1;
+		}
 		fs->seekg(0); // Go back to the start
 	}
 	return (res);
