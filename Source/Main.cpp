@@ -179,6 +179,8 @@ std::string commandOutput (char* command)
 		{
 			delete(buf);
 		}
+
+		pclose(fp);
 	}
 	return (res);
 }
