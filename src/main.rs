@@ -1,4 +1,5 @@
 use std::{
+    io,
     fs::{
         self, File
     }, 
@@ -13,6 +14,7 @@ use directories::ProjectDirs;
 #[derive(Debug)]
 enum TrackerError {
     HomeDirNotFound,
+    DirectoryCreationFailed,
     FileCreationFailed,
     FileOpeningFailed,
     FetchFailed
@@ -32,6 +34,12 @@ use Status::*;
 fn get_config() -> Result<Vec<String>, TrackerError> {
     if let Some(dir) = ProjectDirs::from("org", "GitTracker", "GitTracker") {
         let mut config_dir = dir.config_dir().to_path_buf();
+
+        if let Err(e) = fs::create_dir_all(&config_dir) {
+            eprintln!("{}", e);
+            return Err(DirectoryCreationFailed);
+        };
+
         config_dir.push("repos.txt");
 
         match config_dir.try_exists() {
@@ -140,4 +148,8 @@ fn main() {
             };
         }
     }
+
+    println!("\nPress [Enter] to exit!");
+    let mut buffer = String::new();
+    let _ = io::stdin().read_line(&mut buffer);
 }
