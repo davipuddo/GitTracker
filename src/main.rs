@@ -11,6 +11,8 @@ use std::{
 
 use directories::ProjectDirs;
 
+use rayon::prelude::*;
+
 #[derive(Debug)]
 enum TrackerError {
     HomeDirNotFound,
@@ -20,7 +22,7 @@ enum TrackerError {
     FetchFailed
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Status {
     UpToDate,
     Behind,
@@ -129,28 +131,26 @@ fn main() {
         Err(e) => panic!("{:?}", e)
     };
 
-    for repo in repos {
-
+    repos.par_iter()
+    .for_each(|repo| {
         if !repo.is_empty() {
             let name = match PathBuf::from(repo.clone()).file_name() {
                 Some(name) => name.to_str().unwrap().to_string(),
                 None => String::from("Unknow"),
             };
 
-            print!("{}: ", name);
-
             if let Err(e) = fetch(repo.clone()) {
                 eprintln!("fetching has failed. {:?}", e);
             };
 
             match check(repo.clone()) {
-                UpToDate => println!("Ok"),
-                Behind => println!("Behind"),
-                Uncommited => println!("Uncommited local changes"),
-                Unknow => println!("Repository status is unknow"),
+                UpToDate => println!("{}: Ok", name),
+                Behind => println!("{}: Behind", name),
+                Uncommited => println!("{}: Uncommited local changes", name),
+                Unknow => println!("{}: Repository status is unknow", name),
             };
         }
-    }
+    });
 
     println!("\nPress [Enter] to exit!");
     let mut buffer = String::new();
