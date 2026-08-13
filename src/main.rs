@@ -86,8 +86,11 @@ fn fetch(path: String) -> Result<(), TrackerError> {
 
 fn check(path: String) -> Status {
     let output = match Command::new("git")
-        .args(["status", "-sb"])
-        .current_dir(path)
+        .args([
+            "-c", "core.fileMode=false",
+            "status", "-sb"
+        ])
+        .current_dir(&path)
         .output()
     {
         Ok(status) => status,
