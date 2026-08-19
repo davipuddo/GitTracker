@@ -3,16 +3,14 @@ use std::{
     fs::{
         self, File
     }, 
-    process::{
-        Command,
-    },
     path::PathBuf
 };
 
+use futures::stream::{self, StreamExt};
+
 use directories::ProjectDirs;
 
-use rayon::prelude::*;
-use tokio;
+use tokio::process::Command;
 
 #[derive(Debug)]
 enum TrackerError {
@@ -73,11 +71,12 @@ fn get_config() -> Result<Vec<String>, TrackerError> {
     Err(HomeDirNotFound)
 }
 
-fn fetch(path: String) -> Result<(), TrackerError> {
+async fn fetch(path: String) -> Result<(), TrackerError> {
     match Command::new("git")
         .arg("fetch")
         .current_dir(path)
         .output()
+        .await
     {
         Ok(_) => Ok(()),
         Err(e) => {
@@ -87,7 +86,7 @@ fn fetch(path: String) -> Result<(), TrackerError> {
     }
 }
 
-fn check(path: String) -> Status {
+async fn check(path: String) -> Status {
     let output = match Command::new("git")
         .args([
             "-c", "core.fileMode=false",
@@ -95,6 +94,7 @@ fn check(path: String) -> Status {
         ])
         .current_dir(&path)
         .output()
+        .await
     {
         Ok(status) => status,
         Err(_) => return Unknow
@@ -131,26 +131,28 @@ async fn main() {
         Err(e) => panic!("{:?}", e)
     };
 
-    repos.par_iter()
-    .for_each(|repo| {
+    stream::iter(repos)
+    .for_each_concurrent(None, |repo| async move {
+
         if !repo.is_empty() {
             let name = match PathBuf::from(repo.clone()).file_name() {
                 Some(name) => name.to_str().unwrap().to_string(),
                 None => String::from("Unknow"),
             };
 
-            if let Err(e) = fetch(repo.clone()) {
+            if let Err(e) = fetch(repo.clone()).await {
                 eprintln!("fetching has failed. {:?}", e);
             };
 
-            match check(repo.clone()) {
+            match check(repo.clone()).await {
                 UpToDate => println!("{}: Ok", name),
                 Behind => println!("{}: Behind", name),
                 Uncommited => println!("{}: Uncommited local changes", name),
                 Unknow => println!("{}: Repository status is unknow", name),
             };
         }
-    });
+    })
+    .await;
 
     println!("\nPress [Enter] to exit!");
     let mut buffer = String::new();
