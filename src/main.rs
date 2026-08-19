@@ -12,6 +12,7 @@ use std::{
 use directories::ProjectDirs;
 
 use rayon::prelude::*;
+use tokio;
 
 #[derive(Debug)]
 enum TrackerError {
@@ -122,9 +123,8 @@ fn check(path: String) -> Status {
     };
 }
 
-
-
-fn main() {
+#[tokio::main]
+async fn main() {
 
     let repos = match get_config() {
         Ok(path) => path,
