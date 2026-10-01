@@ -3,6 +3,7 @@ use std::{
     fs::{
         self, File
     }, 
+    env,
     path::PathBuf
 };
 
@@ -32,7 +33,7 @@ enum Status {
 use TrackerError::*;
 use Status::*;
 
-fn get_config() -> Result<Vec<String>, TrackerError> {
+fn get_config_dir() -> Result<PathBuf, TrackerError> {
     if let Some(dir) = ProjectDirs::from("org", "GitTracker", "GitTracker") {
         let mut config_dir = dir.config_dir().to_path_buf();
 
@@ -50,25 +51,30 @@ fn get_config() -> Result<Vec<String>, TrackerError> {
                     return Err(FileCreationFailed);
                 }
             }
-            _ => ()
+            _ => return Ok(config_dir)
         }
-
-        let repos = match fs::read_to_string(config_dir) {
-            Ok(data) => data,
-            Err(e) => {
-                eprintln!("{:?}", e);
-                return Err(FileOpeningFailed);
-            }
-        };
-
-        let lines : Vec<String> = repos.lines()
-                                     .filter(|s| !s.is_empty())
-                                     .map(|slice| slice.to_string())
-                                     .collect();
-
-        return Ok(lines);
     }
     Err(HomeDirNotFound)
+}
+
+fn get_config() -> Result<Vec<String>, TrackerError> {
+
+    let config_dir = get_config_dir()?;
+
+    let repos = match fs::read_to_string(config_dir) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("{:?}", e);
+            return Err(FileOpeningFailed);
+        }
+    };
+
+    let lines : Vec<String> = repos.lines()
+        .filter(|s| !s.is_empty())
+        .map(|slice| slice.to_string())
+        .collect();
+
+    return Ok(lines);
 }
 
 async fn fetch(path: String) -> Result<(), TrackerError> {
@@ -123,8 +129,7 @@ async fn check(path: String) -> Status {
     };
 }
 
-#[tokio::main]
-async fn main() {
+async fn track() {
 
     let repos = match get_config() {
         Ok(path) => path,
@@ -157,4 +162,68 @@ async fn main() {
     println!("\nPress [Enter] to exit!");
     let mut buffer = String::new();
     let _ = io::stdin().read_line(&mut buffer);
+}
+
+fn open_editor() -> Result<(), TrackerError> {
+
+    let config_file = get_config_dir()?
+        .clone()
+        .into_string()
+        .expect("Could not convert config path to a string");
+
+    let editor = match std::env::var("EDITOR") {
+        Ok(editor) => editor,
+        Err(_) => {
+            eprintln!("EDITOR variable is not set!\nDefaulting to VIM");
+            String::from("vim")
+        }
+    };
+
+    std::process::Command::new(&editor)
+    .arg(&config_file)
+    .status()
+    .expect(&format!("Could not run {} {}", editor, &config_file));
+
+    Ok(())
+}
+
+fn help() {
+    let options = [
+        ("edit, -e", "open the configuration file with the editor defined by $EDITOR"),
+    ];
+
+    println!("\n{:<10} GitTracker [OPTIONS]", "Usage: ");
+
+    println!("\nOptions:");
+    for (left, right) in options {
+        println!("  {:<30} {}", left, right);
+    }
+
+}
+
+#[tokio::main]
+async fn main() {
+
+    let mut args: Vec<String> = env::args().collect();
+    args.remove(0);
+
+    let len = args.len();
+    if len > 1 {
+        eprintln!("Too many arguments");
+        help();
+    } else if len > 0 {
+        match args[0].as_str() {
+            "-e" | "edit" => {
+                if let Err(e) = open_editor() {
+                    panic!("Failed to open the config file: {:?}", e);
+                }
+            },
+            _ => {
+                eprintln!("Unknow argument: [{}]", args[0]);
+                help();
+            }
+        };
+    } else {
+        track().await;
+    }
 }
